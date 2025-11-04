@@ -29,5 +29,15 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: python -m pytest
 
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+        run: |
+          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+
       - name: Build Docker image
         run: docker build -t healthcare-knowledge-assistant:ci .
+
+      - name: Push Docker image
+        run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/healthcare-knowledge-assistant:latest
