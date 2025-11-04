@@ -1,61 +1,78 @@
 # Healthcare Knowledge Assistant
 
-FastAPI backend for a bilingual (English/Japanese) healthcare retrieval-augmented generation assistant. The service ingests medical guidelines, indexes them with FAISS, secures endpoints with API keys, and returns mock grounded responses.
+Backend service for the Acme AI Sr. LLM assignment. The app ingests English or Japanese clinical guidance, stores sentence embeddings in FAISS, and serves retrieval plus bilingual mock generation over FastAPI. Every endpoint is protected with an `X-API-Key` header.
 
 ## Prerequisites
-- Python 3.13.9 (required)
-- Windows PowerShell or another shell
-- Recommended: virtual environment named `.venv`
+- Python 3.13.9
+- Git and PowerShell (or another terminal)
+- Docker Desktop (optional, for container runs)
 
-## Local Setup
-1. Create the virtual environment and install dependencies:
+## Local Development
+1. Create and activate a virtual environment:
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
+   ```
+2. Install dependencies:
+   ```powershell
    pip install -r requirements.txt
    ```
-2. Define your API key (set an environment variable or add it to `.env`):
+3. Provide an API key (environment variable or `.env` file):
    ```powershell
    setx HKA_API_KEY "your-secret-key"
    ```
-3. Run the API:
+4. Start the server:
    ```powershell
    uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 
-## API Endpoints
-All endpoints require the header `X-API-Key` matching `HKA_API_KEY`.
+## API Overview
+Every request must include `X-API-Key: <your-secret-key>`.
 
-- `POST /ingest` – upload `.txt` documents (English or Japanese). The service detects language, embeds text, and stores vectors in FAISS.
-- `POST /retrieve` – run a multilingual semantic search that returns the top matches with cosine similarity scores.
-- `POST /generate` – synthesise a mock LLM response using retrieved passages. Optional `output_language` (`"en"` or `"ja"`) controls translation.
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/ingest` | POST (multipart) | Accepts `.txt` documents. Detects language (`en` or `ja`), embeds the text with Sentence Transformers, and writes to FAISS plus JSON metadata. |
+| `/retrieve` | POST (JSON) | Accepts a query in English or Japanese. Returns the top matches with cosine similarity scores and raw content. |
+| `/generate` | POST (JSON) | Combines the query with retrieved passages to produce a mock LLM answer. Supports optional `outputLanguage` (`"en"` or `"ja"`) for translation. |
+
+Uploaded documents are decoded with UTF-8 or common Japanese encodings. Responses include detected language, similarity scores, and document identifiers for traceability.
 
 ## Testing
+Run the integration test suite:
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
+python -m pytest
 ```
-Tests use dependency overrides to avoid large model downloads and keep execution fast.
+`tests/API_test.py` uses dependency overrides to avoid large model downloads while exercising ingest, retrieval, and generation.
 
-## Docker
-Build and run the containerised API (Python 3.13.9 slim image):
+## Docker Usage
+Build and run locally:
 ```powershell
 docker build -t healthcare-knowledge-assistant .
 docker run -e HKA_API_KEY=your-secret-key -p 8000:8000 healthcare-knowledge-assistant
 ```
-Persistent FAISS index files are created under `/app/data`; mount a volume if you need to retain state between runs.
+The server writes FAISS artifacts to `/app/data`. Mount a volume if you need persistence between container runs:
+```powershell
+docker run -e HKA_API_KEY=your-secret-key -p 8000:8000 -v ${PWD}/data:/app/data healthcare-knowledge-assistant
+```
+
+### GitHub Container Registry
+Images are published automatically to `ghcr.io/shaek666/healthcare-knowledge-assistant:latest`. Pull after a successful workflow run:
+```powershell
+docker login ghcr.io -u <ghcr-username>
+docker pull ghcr.io/shaek666/healthcare-knowledge-assistant:latest
+```
 
 ## CI/CD
-`.github/workflows/ci.yml` sets up GitHub Actions to install dependencies, execute the pytest suite, and build the Docker image on every push or pull request targeting `main`.
+`.github/workflows/ci.yml` runs on every push and pull request to `main`:
+1. Install Python dependencies.
+2. Execute `pytest`.
+3. Build the Docker image.
+4. Log in to GitHub Container Registry and push the tagged image.
 
 ## Design Notes
-Scalability comes from keeping the serving layer stateless: document metadata and FAISS artifacts live under `data/`, making it straightforward to replicate via shared storage or object buckets. The service layer wraps embeddings, storage, and translation behind cohesive classes so you can swap them for managed offerings (e.g., external vector databases, production translators) without touching the FastAPI routes. For higher throughput, embeddings and FAISS writes can be offloaded to background workers or batched queues while the API stays responsive.
+**Scalability.** The FastAPI layer remains stateless; document text and FAISS index files sit under `data/`. In production, that directory can be replaced with shared storage or an external vector database without altering the API surface. Sentence embedding is memoised to avoid repeated model loads, and FAISS operations are guarded with locks to keep concurrent ingest safe.
 
-Modularity and future improvements were prioritised. The rule-based translator demonstrates the interface wiring but can be replaced with a production-ready model that speaks both directions; tests already isolate the component. Similarly, the persistence layer currently uses JSON plus FAISS on disk. Replacing this with PostgreSQL + pgvector or a managed Pinecone index only requires updating `DocumentStore` and `FaissVectorStore`. Adding streaming responses or auditable logging hooks can happen inside `RAGService` without breaking the REST contract.
+**Modularity.** Services are separated by responsibility (`documentStorage`, `vectorStorage`, `ragService`, `translation`). Swapping components is straightforward: for example, replacing the rule-based translator with a managed service or upgrading persistence to PostgreSQL plus pgvector only requires editing the relevant service module.
 
-## Project Layout
-- `app/` – FastAPI app, configuration, and services.
-- `data/` – runtime state (FAISS index, document metadata).
-- `tests/` – pytest suite with dependency overrides.
-- `Dockerfile` – container definition.
-- `.github/workflows/ci.yml` – CI pipeline.
+**Future improvements.** Chunk large documents before embedding, add background workers for heavy ingestion, and integrate a real translation model when deployment constraints allow. Additional safeguards such as audit logging, rate limiting, or redaction filters can plug into the service layer without changing the public endpoints.
 
