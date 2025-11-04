@@ -1,21 +1,15 @@
-"""FastAPI dependency wiring helpers."""
-
 from functools import lru_cache
 
-from app.config import Settings, get_settings
-from app.services.rag_service import RAGService
+from app.config import Settings, getSettings
+from app.services.ragService import RAGService
 
 
 @lru_cache(maxsize=1)
-def get_rag_service() -> RAGService:
-    """Return singleton RAG service instance."""
-
-    settings = get_settings()
+def getRagService() -> RAGService:
+    settings = getSettings()
     return RAGService(settings)
 
 
-def get_app_settings() -> Settings:
-    """Expose settings as a dependency."""
-
-    return get_settings()
+def getAppSettings() -> Settings:
+    return getSettings()
 

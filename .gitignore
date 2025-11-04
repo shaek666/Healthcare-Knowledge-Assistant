@@ -1,0 +1,24 @@
+# Virtual environments
+.venv/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Test artefacts
+.pytest_cache/
+
+# Local environment
+.env
+
+# Application data
+data/
+
+# Editor / IDE settings
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+

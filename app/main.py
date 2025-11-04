@@ -1,7 +1,3 @@
-"""FastAPI application entry point."""
-
-from __future__ import annotations
-
 from datetime import datetime
 from pathlib import Path
 
@@ -10,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 
 from app.config import Settings
-from app.dependencies import get_app_settings, get_rag_service
+from app.dependencies import getAppSettings, getRagService
 from app.models import GenerateRequest, GenerateResponse, IngestResponse, RetrieveRequest, RetrieveResponse
-from app.services.rag_service import RAGService
+from app.services.ragService import RAGService
 
 app = FastAPI(
     title="Healthcare Knowledge Assistant",
@@ -20,7 +16,6 @@ app = FastAPI(
     description="RAG-powered bilingual assistant for clinicians.",
 )
 
-# Basic CORS to simplify local integration; tighten in production.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,82 +23,76 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
+apiKeyScheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-def verify_api_key(
-    api_key: str | None = Depends(api_key_scheme), settings: Settings = Depends(get_app_settings)
+def verifyApiKey(
+    apiKey: str | None = Depends(apiKeyScheme), settings: Settings = Depends(getAppSettings)
 ) -> str:
-    if api_key is None or api_key != settings.api_key:
+    if apiKey is None or apiKey != settings.apiKey:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key.")
-    return api_key
+    return apiKey
 
 
 @app.post("/ingest", response_model=IngestResponse, summary="Ingest a medical document.")
-async def ingest_document(
+async def ingestDocument(
     file: UploadFile = File(...),
-    _: str = Depends(verify_api_key),
-    service: RAGService = Depends(get_rag_service),
+    _: str = Depends(verifyApiKey),
+    service: RAGService = Depends(getRagService),
 ) -> IngestResponse:
     filename = file.filename or "uploaded.txt"
     if Path(filename).suffix.lower() != ".txt":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only .txt documents are supported.")
-
-    raw_content = await file.read()
-    text = _decode_text(raw_content)
-    if not text.strip():
+    rawContent = await file.read()
+    textContent = decodeText(rawContent)
+    if not textContent.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded document is empty.")
-
-    record = service.ingest(filename=filename, content=text)
-
+    record = service.ingestDocument(filename=filename, content=textContent)
     return IngestResponse(
-        document_id=record.id,
+        documentId=record.id,
         filename=record.filename,
         language=record.language,
-        characters=len(text),
-        ingested_at=datetime.fromisoformat(record.ingested_at),
+        characters=len(textContent),
+        ingestedAt=datetime.fromisoformat(record.ingestedAt),
     )
 
 
 @app.post("/retrieve", response_model=RetrieveResponse, summary="Retrieve relevant documents.")
-async def retrieve_documents(
+async def retrieveDocuments(
     payload: RetrieveRequest,
-    _: str = Depends(verify_api_key),
-    service: RAGService = Depends(get_rag_service),
+    _: str = Depends(verifyApiKey),
+    service: RAGService = Depends(getRagService),
 ) -> RetrieveResponse:
-    result = service.retrieve(query=payload.query, top_k=payload.top_k)
-    return RetrieveResponse(query_language=result.query_language, matches=result.matches)
+    result = service.retrieveMatches(query=payload.query, topK=payload.topK)
+    return RetrieveResponse(queryLanguage=result.queryLanguage, matches=result.matches)
 
 
 @app.post("/generate", response_model=GenerateResponse, summary="Generate a grounded response.")
-async def generate_response(
+async def generateResponse(
     payload: GenerateRequest,
-    _: str = Depends(verify_api_key),
-    service: RAGService = Depends(get_rag_service),
+    _: str = Depends(verifyApiKey),
+    service: RAGService = Depends(getRagService),
 ) -> GenerateResponse:
-    generation = service.generate(query=payload.query, top_k=payload.top_k, output_language=payload.output_language)
+    generation = service.generateResponse(query=payload.query, topK=payload.topK, outputLanguage=payload.outputLanguage)
     return GenerateResponse(
-        query_language=generation.query_language,
-        output_language=generation.output_language,
+        queryLanguage=generation.queryLanguage,
+        outputLanguage=generation.outputLanguage,
         response=generation.response,
         sources=generation.sources,
     )
 
 
-def _decode_text(raw: bytes) -> str:
-    """Attempt to decode uploaded bytes into text."""
-
+def decodeText(raw: bytes) -> str:
     if not raw:
         return ""
-
-    candidates = ("utf-8", "utf-8-sig", "shift_jis", "cp932")
-    for encoding in candidates:
-        try:
-            return raw.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-
+    encodingCandidates = ("utf-8", "utf-8-sig", "shift_jis", "cp932")
+    for encodingName in encodingCandidates:
+        decodedText = raw.decode(encodingName, errors="ignore")
+        reEncodedText = decodedText.encode(encodingName, errors="ignore")
+        if len(reEncodedText) == len(raw):
+            return decodedText
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f"Unable to decode file with supported encodings: {', '.join(candidates)}.",
+        detail=f"Unable to decode file with supported encodings: {', '.join(encodingCandidates)}.",
     )
+

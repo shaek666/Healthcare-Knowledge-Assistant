@@ -1,111 +1,99 @@
-"""Lightweight rule-based translation helpers.
-
-This module intentionally implements a deterministic, dependency-free mock translator
-to satisfy the bilingual requirement without relying on heavyweight external models.
-It covers a curated vocabulary tailored to the healthcare knowledge base scenario.
-"""
-
-from __future__ import annotations
-
 import re
 
-from app.config import Settings, get_settings
+from app.config import Settings, getSettings
 
-EN_TO_JA_MULTIWORD = {
-    "type 2 diabetes": "2型糖尿病",
-    "blood glucose": "血糖",
-    "clinical guideline": "臨床ガイドライン",
-    "lifestyle modification": "生活習慣の改善",
+enToJaMultiword = {
+    "type 2 diabetes": "2\u578b\u7cd6\u5c3f\u75c5",
+    "blood glucose": "\u8840\u7cd6",
+    "clinical guideline": "\u81e8\u5e8a\u30ac\u30a4\u30c9\u30e9\u30a4\u30f3",
+    "lifestyle modification": "\u751f\u6d3b\u7fd2\u6163\u306e\u6539\u5584",
 }
 
-EN_TO_JA_SINGLEWORD = {
-    "guideline": "ガイドライン",
-    "guidelines": "ガイドライン",
-    "patient": "患者",
-    "patients": "患者",
-    "management": "管理",
-    "therapy": "療法",
-    "treatment": "治療",
-    "insulin": "インスリン",
-    "recommendation": "推奨事項",
-    "recommendations": "推奨事項",
-    "monitoring": "モニタリング",
-    "lifestyle": "生活習慣",
-    "medication": "薬物療法",
-    "diet": "食事",
-    "exercise": "運動",
-    "risk": "リスク",
-    "assessment": "評価",
-    "care": "ケア",
-    "clinical": "臨床",
-    "evidence": "エビデンス",
+enToJaSingleword = {
+    "guideline": "\u30ac\u30a4\u30c9\u30e9\u30a4\u30f3",
+    "guidelines": "\u30ac\u30a4\u30c9\u30e9\u30a4\u30f3",
+    "patient": "\u60a3\u8005",
+    "patients": "\u60a3\u8005",
+    "management": "\u7ba1\u7406",
+    "therapy": "\u7642\u6cd5",
+    "treatment": "\u6cbb\u7642",
+    "insulin": "\u30a4\u30f3\u30b9\u30ea\u30f3",
+    "recommendation": "\u63a8\u5968\u4e8b\u9805",
+    "recommendations": "\u63a8\u5968\u4e8b\u9805",
+    "monitoring": "\u30e2\u30cb\u30bf\u30ea\u30f3\u30b0",
+    "lifestyle": "\u751f\u6d3b\u7fd2\u6163",
+    "medication": "\u85ac\u7269\u7642\u6cd5",
+    "diet": "\u98df\u4e8b",
+    "exercise": "\u904b\u52d5",
+    "risk": "\u30ea\u30b9\u30af",
+    "assessment": "\u8a55\u4fa1",
+    "care": "\u30b1\u30a2",
+    "clinical": "\u81e8\u5e8a",
+    "evidence": "\u30a8\u30d3\u30c7\u30f3\u30b9",
 }
 
-JA_TO_EN_MULTIWORD = {v: k for k, v in EN_TO_JA_MULTIWORD.items()}
-JA_TO_EN_SINGLEWORD = {
-    "ガイドライン": "guideline",
-    "患者": "patient",
-    "管理": "management",
-    "療法": "therapy",
-    "治療": "treatment",
-    "インスリン": "insulin",
-    "推奨事項": "recommendations",
-    "モニタリング": "monitoring",
-    "生活習慣": "lifestyle",
-    "薬物療法": "medication",
-    "食事": "diet",
-    "運動": "exercise",
-    "リスク": "risk",
-    "評価": "assessment",
-    "ケア": "care",
-    "臨床": "clinical",
-    "エビデンス": "evidence",
-    "血糖": "blood glucose",
-    "2型糖尿病": "type 2 diabetes",
+jaToEnMultiword = {value: key for key, value in enToJaMultiword.items()}
+jaToEnSingleword = {
+    "\u30ac\u30a4\u30c9\u30e9\u30a4\u30f3": "guideline",
+    "\u60a3\u8005": "patient",
+    "\u7ba1\u7406": "management",
+    "\u7642\u6cd5": "therapy",
+    "\u6cbb\u7642": "treatment",
+    "\u30a4\u30f3\u30b9\u30ea\u30f3": "insulin",
+    "\u63a8\u5968\u4e8b\u9805": "recommendations",
+    "\u30e2\u30cb\u30bf\u30ea\u30f3\u30b0": "monitoring",
+    "\u751f\u6d3b\u7fd2\u6163": "lifestyle",
+    "\u85ac\u7269\u7642\u6cd5": "medication",
+    "\u98df\u4e8b": "diet",
+    "\u904b\u52d5": "exercise",
+    "\u30ea\u30b9\u30af": "risk",
+    "\u8a55\u4fa1": "assessment",
+    "\u30b1\u30a2": "care",
+    "\u81e8\u5e8a": "clinical",
+    "\u30a8\u30d3\u30c7\u30f3\u30b9": "evidence",
+    "\u8840\u7cd6": "blood glucose",
+    "2\u578b\u7cd6\u5c3f\u75c5": "type 2 diabetes",
 }
 
 
 class TranslationService:
-    """Provides minimal deterministic translation behaviour for en/ja pairs."""
-
     def __init__(self, _: Settings | None = None):
-        # Settings retained for future extension and to keep signature consistent.
-        self.settings = get_settings()
+        self.settings = getSettings()
 
-    def translate(self, text: str, source_language: str, target_language: str) -> str:
+    def translate(self, text: str, sourceLanguage: str, targetLanguage: str) -> str:
         if not text:
             return text
-        if source_language == target_language:
+        if sourceLanguage == targetLanguage:
             return text
-        key = (source_language, target_language)
-        if key == ("en", "ja"):
-            return _translate_en_to_ja(text)
-        if key == ("ja", "en"):
-            return _translate_ja_to_en(text)
-        raise ValueError(f"Unsupported translation pair: {source_language}->{target_language}")
+        languageKey = (sourceLanguage, targetLanguage)
+        if languageKey == ("en", "ja"):
+            return translateEnToJa(text)
+        if languageKey == ("ja", "en"):
+            return translateJaToEn(text)
+        raise ValueError(f"Unsupported translation pair: {sourceLanguage}->{targetLanguage}")
 
 
-def _translate_en_to_ja(text: str) -> str:
-    output = text
-    for phrase, replacement in EN_TO_JA_MULTIWORD.items():
-        output = re.sub(phrase, replacement, output, flags=re.IGNORECASE)
+def translateEnToJa(text: str) -> str:
+    outputText = text
+    for phrase, replacement in enToJaMultiword.items():
+        outputText = re.sub(phrase, replacement, outputText, flags=re.IGNORECASE)
 
-    def replace_word(match: re.Match[str]) -> str:
+    def replaceWord(match: re.Match[str]) -> str:
         word = match.group(0)
-        lower = word.lower()
-        return EN_TO_JA_SINGLEWORD.get(lower, word)
+        lowerWord = word.lower()
+        return enToJaSingleword.get(lowerWord, word)
 
-    return re.sub(r"[A-Za-z]+", replace_word, output)
+    return re.sub(r"[A-Za-z]+", replaceWord, outputText)
 
 
-def _translate_ja_to_en(text: str) -> str:
-    output = text
-    for phrase, replacement in JA_TO_EN_MULTIWORD.items():
-        output = output.replace(phrase, replacement)
+def translateJaToEn(text: str) -> str:
+    outputText = text
+    for phrase, replacement in jaToEnMultiword.items():
+        outputText = outputText.replace(phrase, replacement)
 
-    def replace_word(match: re.Match[str]) -> str:
+    def replaceWord(match: re.Match[str]) -> str:
         word = match.group(0)
-        return JA_TO_EN_SINGLEWORD.get(word, word)
+        return jaToEnSingleword.get(word, word)
 
-    return re.sub(r"[一-龯ぁ-んァ-ンー]+", replace_word, output)
+    return re.sub(r"[\u4e00-\u9faf\u3041-\u3093\u30a1-\u30f3\u30fc]+", replaceWord, outputText)
 
