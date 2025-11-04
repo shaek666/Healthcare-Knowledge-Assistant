@@ -25,8 +25,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run test suite
-        run: pytest
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m pytest
 
       - name: Build Docker image
         run: docker build -t healthcare-knowledge-assistant:ci .
-
