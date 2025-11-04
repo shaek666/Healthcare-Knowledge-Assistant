@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-
 @dataclass
 class DocumentRecord:
     id: int
@@ -13,7 +12,6 @@ class DocumentRecord:
     language: str
     content: str
     ingestedAt: str
-
 
 class DocumentStore:
     def __init__(self, metadataPath: Path):
@@ -74,4 +72,3 @@ class DocumentStore:
     def allDocuments(self) -> List[DocumentRecord]:
         with self.lockInstance:
             return [DocumentRecord(**rawRecord) for rawRecord in self.dataState.get("documents", [])]
-

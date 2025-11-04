@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import List
-
 import numpy as np
-
 from app.config import Settings, getSettings
 from app.models import DocumentMatch, SourceDocument
 from app.services.documentStorage import DocumentRecord, DocumentStore
@@ -11,12 +9,10 @@ from app.services.languageDetection import detectLanguage
 from app.services.translation import TranslationService
 from app.services.vectorStorage import FaissVectorStore
 
-
 @dataclass
 class RetrievalResult:
     queryLanguage: str
     matches: List[DocumentMatch]
-
 
 @dataclass
 class GenerationResult:
@@ -24,7 +20,6 @@ class GenerationResult:
     outputLanguage: str
     response: str
     sources: List[SourceDocument]
-
 
 class RAGService:
     def __init__(self, settings: Settings | None = None):
@@ -123,15 +118,12 @@ class RAGService:
             return text
         return self.translationService.translate(text, sourceLanguage=sourceLanguage, targetLanguage=targetLanguage)
 
-
 def convertCosineToUnit(value: float) -> float:
     clippedValue = max(min(value, 1.0), -1.0)
     return (clippedValue + 1.0) / 2.0
-
 
 def buildPreview(text: str, limitValue: int = 200) -> str:
     snippet = text.strip()
     if len(snippet) <= limitValue:
         return snippet
     return snippet[:limitValue].rstrip() + "..."
-

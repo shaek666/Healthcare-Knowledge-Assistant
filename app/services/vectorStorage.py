@@ -1,10 +1,8 @@
 import threading
 from pathlib import Path
 from typing import List, Tuple
-
 import faiss
 import numpy as np
-
 
 class FaissVectorStore:
     def __init__(self, indexPath: Path):
@@ -59,4 +57,3 @@ class FaissVectorStore:
             return
         self.indexPath.parent.mkdir(parents=True, exist_ok=True)
         faiss.write_index(self.indexInstance, str(self.indexPath))
-

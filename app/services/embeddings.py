@@ -1,14 +1,11 @@
 import threading
 from typing import Iterable
-
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
 from app.config import getSettings
 
 modelInstance: SentenceTransformer | None = None
 modelLock = threading.Lock()
-
 
 def loadModel() -> SentenceTransformer:
     global modelInstance
@@ -18,7 +15,6 @@ def loadModel() -> SentenceTransformer:
                 settings = getSettings()
                 modelInstance = SentenceTransformer(settings.embeddingModelName)
     return modelInstance
-
 
 def embedTexts(texts: Iterable[str]) -> np.ndarray:
     model = loadModel()
@@ -31,7 +27,5 @@ def embedTexts(texts: Iterable[str]) -> np.ndarray:
     )
     return np.asarray(embeddings, dtype="float32")
 
-
 def embedText(text: str) -> np.ndarray:
     return embedTexts([text])[0]
-

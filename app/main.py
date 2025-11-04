@@ -1,10 +1,8 @@
 from datetime import datetime
 from pathlib import Path
-
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-
 from app.config import Settings
 from app.dependencies import getAppSettings, getRagService
 from app.models import GenerateRequest, GenerateResponse, IngestResponse, RetrieveRequest, RetrieveResponse
@@ -25,14 +23,12 @@ app.add_middleware(
 
 apiKeyScheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-
 def verifyApiKey(
     apiKey: str | None = Depends(apiKeyScheme), settings: Settings = Depends(getAppSettings)
 ) -> str:
     if apiKey is None or apiKey != settings.apiKey:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key.")
     return apiKey
-
 
 @app.post("/ingest", response_model=IngestResponse, summary="Ingest a medical document.")
 async def ingestDocument(
@@ -56,7 +52,6 @@ async def ingestDocument(
         ingestedAt=datetime.fromisoformat(record.ingestedAt),
     )
 
-
 @app.post("/retrieve", response_model=RetrieveResponse, summary="Retrieve relevant documents.")
 async def retrieveDocuments(
     payload: RetrieveRequest,
@@ -65,7 +60,6 @@ async def retrieveDocuments(
 ) -> RetrieveResponse:
     result = service.retrieveMatches(query=payload.query, topK=payload.topK)
     return RetrieveResponse(queryLanguage=result.queryLanguage, matches=result.matches)
-
 
 @app.post("/generate", response_model=GenerateResponse, summary="Generate a grounded response.")
 async def generateResponse(
@@ -81,7 +75,6 @@ async def generateResponse(
         sources=generation.sources,
     )
 
-
 def decodeText(raw: bytes) -> str:
     if not raw:
         return ""
@@ -95,4 +88,3 @@ def decodeText(raw: bytes) -> str:
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=f"Unable to decode file with supported encodings: {', '.join(encodingCandidates)}.",
     )
-

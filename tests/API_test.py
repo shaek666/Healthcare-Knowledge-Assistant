@@ -1,10 +1,8 @@
 from pathlib import Path
 from typing import Iterator
-
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-
 from app import dependencies
 from app.config import Settings
 from app.dependencies import getAppSettings, getRagService

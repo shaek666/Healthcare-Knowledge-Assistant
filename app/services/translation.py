@@ -1,5 +1,4 @@
 import re
-
 from app.config import Settings, getSettings
 
 enToJaMultiword = {
@@ -55,7 +54,6 @@ jaToEnSingleword = {
     "2\u578b\u7cd6\u5c3f\u75c5": "type 2 diabetes",
 }
 
-
 class TranslationService:
     def __init__(self, _: Settings | None = None):
         self.settings = getSettings()
@@ -72,7 +70,6 @@ class TranslationService:
             return translateJaToEn(text)
         raise ValueError(f"Unsupported translation pair: {sourceLanguage}->{targetLanguage}")
 
-
 def translateEnToJa(text: str) -> str:
     outputText = text
     for phrase, replacement in enToJaMultiword.items():
@@ -85,7 +82,6 @@ def translateEnToJa(text: str) -> str:
 
     return re.sub(r"[A-Za-z]+", replaceWord, outputText)
 
-
 def translateJaToEn(text: str) -> str:
     outputText = text
     for phrase, replacement in jaToEnMultiword.items():
@@ -96,4 +92,3 @@ def translateJaToEn(text: str) -> str:
         return jaToEnSingleword.get(word, word)
 
     return re.sub(r"[\u4e00-\u9faf\u3041-\u3093\u30a1-\u30f3\u30fc]+", replaceWord, outputText)
-

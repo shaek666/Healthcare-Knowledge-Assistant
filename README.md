@@ -1,4 +1,4 @@
-# Healthcare Knowledge Assistant
+﻿# Healthcare Knowledge Assistant
 
 Backend service for the Acme AI Sr. LLM assignment. The app ingests English or Japanese clinical guidance, stores sentence embeddings in FAISS, and serves retrieval plus bilingual mock generation over FastAPI. Every endpoint is protected with an `X-API-Key` header.
 
@@ -61,10 +61,11 @@ Images are published automatically to `ghcr.io/shaek666/healthcare-knowledge-ass
 docker login ghcr.io -u <ghcr-username>
 docker pull ghcr.io/shaek666/healthcare-knowledge-assistant:latest
 ```
+> **Why torch CPU wheels?** The pinned first two lines of `requirements.txt` pull PyTorch from the official CPU wheel index. This keeps installs lightweight and avoids the multi-gigabyte CUDA dependency chain during CI builds and Docker image creation.
 
 ## CI/CD
 `.github/workflows/ci.yml` runs on every push and pull request to `main`:
-1. Install Python dependencies.
+1. Install dependencies.
 2. Execute `pytest`.
 3. Build the Docker image.
 4. Log in to GitHub Container Registry and push the tagged image.
@@ -76,3 +77,30 @@ docker pull ghcr.io/shaek666/healthcare-knowledge-assistant:latest
 
 **Future improvements.** Chunk large documents before embedding, add background workers for heavy ingestion, and integrate a real translation model when deployment constraints allow. Additional safeguards such as audit logging, rate limiting, or redaction filters can plug into the service layer without changing the public endpoints.
 
+## Project Layout
+```
+Healthcare-Knowledge-Assistant/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── app/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── dependencies.py
+│   ├── main.py
+│   └── services/
+│       ├── documentStorage.py
+│       ├── embeddings.py
+│       ├── languageDetection.py
+│       ├── ragService.py
+│       ├── translation.py
+│       └── vectorStorage.py
+├── data/
+│   └── (runtime index files created at runtime)
+├── tests/
+│   └── API_test.py
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+└── requirements.txt
+```
