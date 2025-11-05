@@ -50,10 +50,10 @@ docker run --rm ghcr.io/shaek666/healthcare-knowledge-assistant:latest python -m
 ```
 `tests/API_test.py` swaps in lightweight fakes for embeddings and translation, so the test run is quick.
 
-## CI/CD notes
+## CI/CD process
 `.github/workflows/ci.yml` triggers on every push or PR to `main`. The workflow installs dependencies, runs pytest, builds the Docker image, and pushes it to GitHub Container Registry using the `GHCR_USERNAME` and `GHCR_TOKEN` secrets.
 
-## Design snapshot
+## Design notes
 **Scalability.** The serving layer is intentionally stateless so a single container can handle traffic bursts without coordination. FAISS artifacts, metadata, and uploads live under `data/`, which makes it trivial to swap persistent storage (S3, blob volumes, or a managed vector database). Long-running work such as embedding generation is guarded by simple locks, and the footprint stays small because the CPU-only torch wheel avoids GPU baggage. This setup keeps the pipeline nimble for local tests while still mapping cleanly to cloud infrastructure.
 
 **Modularity.** Key behaviors are isolated inside `app/services/`. `translation.py` handles mock bilingual shifts, `documentStorage.py` deals with metadata, and `vectorStorage.py` wraps FAISS persistence. Swapping any piece—say replacing the translation shim with a production model or plugging in an external vector store—only touches that module. FastAPI routers stay thin and simply delegate to the service layer, which keeps the codebase easy to reason about.
