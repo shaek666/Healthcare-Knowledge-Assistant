@@ -10,7 +10,7 @@ from app.services.ragService import RAGService
 
 app = FastAPI(
     title="Healthcare Knowledge Assistant",
-    version="0.1.0",
+    version="0.1.0-alpha",
     description="RAG-powered bilingual assistant for clinicians.",
 )
 

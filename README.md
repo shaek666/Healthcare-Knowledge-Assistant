@@ -1,106 +1,90 @@
-﻿# Healthcare Knowledge Assistant
+# Healthcare Knowledge Assistant
 
-Backend service for the Acme AI Sr. LLM assignment. The app ingests English or Japanese clinical guidance, stores sentence embeddings in FAISS, and serves retrieval plus bilingual mock generation over FastAPI. Every endpoint is protected with an `X-API-Key` header.
+This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer assignment. It ships a FastAPI backend that can ingest English and Japanese guideline documents, store embeddings in FAISS, and serve retrieval-augmented responses. Every endpoint expects an `X-API-Key` header so the service stays locked down.
 
-## Prerequisites
+## What you need
 - Python 3.13.9
-- Git and PowerShell (or another terminal)
-- Docker Desktop (optional, for container runs)
+- Docker Desktop with the `docker` CLI
 
-## Local Development
-1. Create and activate a virtual environment:
+## Quick start with Docker
+1. Pick an API key and export it before running the container:
    ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
+   $env:HKA_API_KEY = "your-secret-key"
    ```
-2. Install dependencies:
+2. Build the image. Dependencies are handled inside the Docker build, so no virtualenv is necessary:
    ```powershell
-   pip install -r requirements.txt
+   docker build -t healthcare-knowledge-assistant .
    ```
-3. Provide an API key (environment variable or `.env` file):
+3. Launch the backend:
    ```powershell
-   setx HKA_API_KEY "your-secret-key"
+   docker run -e HKA_API_KEY=$env:HKA_API_KEY -p 8000:8000 healthcare-knowledge-assistant
    ```
-4. Start the server:
+   FAISS artifacts land in `/app/data`. Mount a volume if you want those vectors to survive container restarts:
    ```powershell
-   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   docker run -e HKA_API_KEY=$env:HKA_API_KEY -p 8000:8000 -v ${PWD}/data:/app/data healthcare-knowledge-assistant
    ```
 
-## API Overview
-Every request must include `X-API-Key: <your-secret-key>`.
-
-| Endpoint | Method | Description |
-| --- | --- | --- |
-| `/ingest` | POST (multipart) | Accepts `.txt` documents. Detects language (`en` or `ja`), embeds the text with Sentence Transformers, and writes to FAISS plus JSON metadata. |
-| `/retrieve` | POST (JSON) | Accepts a query in English or Japanese. Returns the top matches with cosine similarity scores and raw content. |
-| `/generate` | POST (JSON) | Combines the query with retrieved passages to produce a mock LLM answer. Supports optional `outputLanguage` (`"en"` or `"ja"`) for translation. |
-
-Uploaded documents are decoded with UTF-8 or common Japanese encodings. Responses include detected language, similarity scores, and document identifiers for traceability.
-
-## Testing
-Run the integration test suite:
-```powershell
-python -m pytest
-```
-`tests/API_test.py` uses dependency overrides to avoid large model downloads while exercising ingest, retrieval, and generation.
-
-## Docker Usage
-Build and run locally:
-```powershell
-docker build -t healthcare-knowledge-assistant .
-docker run -e HKA_API_KEY=your-secret-key -p 8000:8000 healthcare-knowledge-assistant
-```
-The server writes FAISS artifacts to `/app/data`. Mount a volume if you need persistence between container runs:
-```powershell
-docker run -e HKA_API_KEY=your-secret-key -p 8000:8000 -v ${PWD}/data:/app/data healthcare-knowledge-assistant
-```
-
-### GitHub Container Registry
-Images are published automatically to `ghcr.io/shaek666/healthcare-knowledge-assistant:latest`. Pull after a successful workflow run:
+### Pulling the published image
+Skip the local build by pulling the image that CI publishes:
 ```powershell
 docker login ghcr.io -u <ghcr-username>
 docker pull ghcr.io/shaek666/healthcare-knowledge-assistant:latest
 ```
 > **Why torch CPU wheels?** The pinned first two lines of `requirements.txt` pull PyTorch from the official CPU wheel index. This keeps installs lightweight and avoids the multi-gigabyte CUDA dependency chain during CI builds and Docker image creation.
 
-## CI/CD
-`.github/workflows/ci.yml` runs on every push and pull request to `main`:
-1. Install dependencies.
-2. Execute `pytest`.
-3. Build the Docker image.
-4. Log in to GitHub Container Registry and push the tagged image.
+## API guide
+All requests must send `X-API-Key: <your-secret-key>`.
 
-## Design Notes
-**Scalability.** The FastAPI layer remains stateless; document text and FAISS index files sit under `data/`. In production, that directory can be replaced with shared storage or an external vector database without altering the API surface. Sentence embedding is memoised to avoid repeated model loads, and FAISS operations are guarded with locks to keep concurrent ingest safe.
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/ingest` | POST (multipart) | Accepts `".txt"` files (English or Japanese). Detects language, creates embeddings, and stores metadata plus vectors. |
+| `/retrieve` | POST (JSON) | Processes a free-form query and returns top matches with cosine similarity scores and raw snippets. |
+| `/generate` | POST (JSON) | Produces a mock summary grounded in retrieved passages. Add `outputLanguage` (`"en"` or `"ja"`) to control the response language. |
 
-**Modularity.** Services are separated by responsibility (`documentStorage`, `vectorStorage`, `ragService`, `translation`). Swapping components is straightforward: for example, replacing the rule-based translator with a managed service or upgrading persistence to PostgreSQL plus pgvector only requires editing the relevant service module.
+Uploads are decoded with UTF-8 plus a couple of Japanese fallbacks, and responses echo the detected language so you can verify what the system saw.
 
-**Future improvements.** Chunk large documents before embedding, add background workers for heavy ingestion, and integrate a real translation model when deployment constraints allow. Additional safeguards such as audit logging, rate limiting, or redaction filters can plug into the service layer without changing the public endpoints.
+## Running the tests
+The integration suite touches all three endpoints. Run it inside a container to ensure parity with CI:
+```powershell
+docker run --rm ghcr.io/shaek666/healthcare-knowledge-assistant:latest python -m pytest
+```
+`tests/API_test.py` swaps in lightweight fakes for embeddings and translation, so the test run is quick.
 
-## Project Layout
+## CI/CD notes
+`.github/workflows/ci.yml` triggers on every push or PR to `main`. The workflow installs dependencies, runs pytest, builds the Docker image, and pushes it to GitHub Container Registry using the `GHCR_USERNAME` and `GHCR_TOKEN` secrets.
+
+## Design snapshot
+**Scalability.** The serving layer is intentionally stateless so a single container can handle traffic bursts without coordination. FAISS artifacts, metadata, and uploads live under `data/`, which makes it trivial to swap persistent storage (S3, blob volumes, or a managed vector database). Long-running work such as embedding generation is guarded by simple locks, and the footprint stays small because the CPU-only torch wheel avoids GPU baggage. This setup keeps the pipeline nimble for local tests while still mapping cleanly to cloud infrastructure.
+
+**Modularity.** Key behaviors are isolated inside `app/services/`. `translation.py` handles mock bilingual shifts, `documentStorage.py` deals with metadata, and `vectorStorage.py` wraps FAISS persistence. Swapping any piece�say replacing the translation shim with a production model or plugging in an external vector store�only touches that module. FastAPI routers stay thin and simply delegate to the service layer, which keeps the codebase easy to reason about.
+
+**Future ideas.** The next iteration should chunk large documents before embedding so we can handle guideline PDFs cleanly. Background workers (Celery or simple RQ) would let ingestion run asynchronously while the API stays responsive. Additional items on the roadmap include auditable response logs, rate limiting, and a real translation bridge for Japanese-to-English. With those pieces in place, the backend becomes a realistic foundation for clinical knowledge assistants.
+
+## Project map
 ```
 Healthcare-Knowledge-Assistant/
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── app/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── dependencies.py
-│   ├── main.py
-│   └── services/
-│       ├── documentStorage.py
-│       ├── embeddings.py
-│       ├── languageDetection.py
-│       ├── ragService.py
-│       ├── translation.py
-│       └── vectorStorage.py
-├── data/
-│   └── (runtime index files created at runtime)
-├── tests/
-│   └── API_test.py
-├── .dockerignore
-├── .gitignore
-├── Dockerfile
-└── requirements.txt
++-- .github/
+�   +-- workflows/
+�       +-- ci.yml
++-- app/
+�   +-- __init__.py
+�   +-- config.py
+�   +-- dependencies.py
+�   +-- main.py
+�   +-- services/
+�       +-- documentStorage.py
+�       +-- embeddings.py
+�       +-- languageDetection.py
+�       +-- ragService.py
+�       +-- translation.py
+�       +-- vectorStorage.py
++-- data/
+�   +-- (runtime index files created at runtime)
++-- tests/
+�   +-- API_test.py
++-- .dockerignore
++-- .gitignore
++-- Dockerfile
++-- requirements.txt
 ```
+
