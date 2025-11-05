@@ -27,7 +27,7 @@ This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer
 ### Pulling the published image
 Skip the local build by pulling the image that CI publishes:
 ```powershell
-docker login ghcr.io -u <ghcr-username>
+echo "your-ghcr-token" | docker login ghcr.io -u <ghcr-username> --password-stdin
 docker pull ghcr.io/shaek666/healthcare-knowledge-assistant:latest
 ```
 > **Why torch CPU wheels?** The pinned first two lines of `requirements.txt` pull PyTorch from the official CPU wheel index. This keeps installs lightweight and avoids the multi-gigabyte CUDA dependency chain during CI builds and Docker image creation.
