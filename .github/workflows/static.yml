@@ -1,0 +1,59 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Generate status page
+        run: |
+          mkdir -p public
+          cat > public/index.html <<'EOF'
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Healthcare Knowledge Assistant</title>
+          </head>
+          <body>
+            <h1>Healthcare Knowledge Assistant</h1>
+            <p>Latest build: ${{ github.run_number }}</p>
+            <p>Commit: ${{ github.sha }}</p>
+            <p>Status: ✅ CI succeeded (tests, Docker build, GHCR push).</p>
+            <p>CD status: waiting for host — add self-hosted runner or VM to deploy.</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
