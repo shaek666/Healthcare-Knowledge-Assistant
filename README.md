@@ -1,4 +1,4 @@
-# Healthcare Knowledge Assistant
+﻿# Healthcare Knowledge Assistant
 
 This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer assignment. It ships a FastAPI backend that can ingest English and Japanese guideline documents, store embeddings in FAISS, and serve retrieval-augmented responses. Every endpoint expects an `X-API-Key` header so the service stays locked down.
 
@@ -37,7 +37,7 @@ All requests must send `X-API-Key: <your-secret-key>`.
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/ingest` | POST (multipart) | Accepts `".txt"` files (English or Japanese). Detects language, creates embeddings, and stores metadata plus vectors. |
+| `/ingest` | POST (multipart) | Accepts `.txt` files (English or Japanese). Detects language, creates embeddings, and stores metadata plus vectors. |
 | `/retrieve` | POST (JSON) | Processes a free-form query and returns top matches with cosine similarity scores and raw snippets. |
 | `/generate` | POST (JSON) | Produces a mock summary grounded in retrieved passages. Add `outputLanguage` (`"en"` or `"ja"`) to control the response language. |
 
@@ -56,35 +56,34 @@ docker run --rm ghcr.io/shaek666/healthcare-knowledge-assistant:latest python -m
 ## Design snapshot
 **Scalability.** The serving layer is intentionally stateless so a single container can handle traffic bursts without coordination. FAISS artifacts, metadata, and uploads live under `data/`, which makes it trivial to swap persistent storage (S3, blob volumes, or a managed vector database). Long-running work such as embedding generation is guarded by simple locks, and the footprint stays small because the CPU-only torch wheel avoids GPU baggage. This setup keeps the pipeline nimble for local tests while still mapping cleanly to cloud infrastructure.
 
-**Modularity.** Key behaviors are isolated inside `app/services/`. `translation.py` handles mock bilingual shifts, `documentStorage.py` deals with metadata, and `vectorStorage.py` wraps FAISS persistence. Swapping any piece�say replacing the translation shim with a production model or plugging in an external vector store�only touches that module. FastAPI routers stay thin and simply delegate to the service layer, which keeps the codebase easy to reason about.
+**Modularity.** Key behaviors are isolated inside `app/services/`. `translation.py` handles mock bilingual shifts, `documentStorage.py` deals with metadata, and `vectorStorage.py` wraps FAISS persistence. Swapping any piece—say replacing the translation shim with a production model or plugging in an external vector store—only touches that module. FastAPI routers stay thin and simply delegate to the service layer, which keeps the codebase easy to reason about.
 
 **Future ideas.** The next iteration should chunk large documents before embedding so we can handle guideline PDFs cleanly. Background workers (Celery or simple RQ) would let ingestion run asynchronously while the API stays responsive. Additional items on the roadmap include auditable response logs, rate limiting, and a real translation bridge for Japanese-to-English. With those pieces in place, the backend becomes a realistic foundation for clinical knowledge assistants.
 
 ## Project map
 ```
 Healthcare-Knowledge-Assistant/
-+-- .github/
-�   +-- workflows/
-�       +-- ci.yml
-+-- app/
-�   +-- __init__.py
-�   +-- config.py
-�   +-- dependencies.py
-�   +-- main.py
-�   +-- services/
-�       +-- documentStorage.py
-�       +-- embeddings.py
-�       +-- languageDetection.py
-�       +-- ragService.py
-�       +-- translation.py
-�       +-- vectorStorage.py
-+-- data/
-�   +-- (runtime index files created at runtime)
-+-- tests/
-�   +-- API_test.py
-+-- .dockerignore
-+-- .gitignore
-+-- Dockerfile
-+-- requirements.txt
+|-- .github/
+|   |-- workflows/
+|   |   `-- ci.yml
+|-- app/
+|   |-- __init__.py
+|   |-- config.py
+|   |-- dependencies.py
+|   |-- main.py
+|   `-- services/
+|       |-- documentStorage.py
+|       |-- embeddings.py
+|       |-- languageDetection.py
+|       |-- ragService.py
+|       |-- translation.py
+|       `-- vectorStorage.py
+|-- data/
+|   `-- (runtime index files created at runtime)
+|-- tests/
+|   `-- API_test.py
+|-- .dockerignore
+|-- .gitignore
+|-- Dockerfile
+`-- requirements.txt
 ```
-
