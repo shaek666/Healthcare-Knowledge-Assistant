@@ -1,8 +1,6 @@
-import threading
+import threading, faiss, numpy as np
 from pathlib import Path
 from typing import List, Tuple
-import faiss
-import numpy as np
 
 class FaissVectorStore:
     def __init__(self, indexPath: Path):

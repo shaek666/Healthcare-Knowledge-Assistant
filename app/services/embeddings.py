@@ -1,20 +1,13 @@
-import threading
-from typing import Iterable
 import numpy as np
+from functools import lru_cache
+from typing import Iterable
 from sentence_transformers import SentenceTransformer
 from app.config import getSettings
 
-modelInstance: SentenceTransformer | None = None
-modelLock = threading.Lock()
-
+@lru_cache(maxsize=1)
 def loadModel() -> SentenceTransformer:
-    global modelInstance
-    if modelInstance is None:
-        with modelLock:
-            if modelInstance is None:
-                settings = getSettings()
-                modelInstance = SentenceTransformer(settings.embeddingModelName)
-    return modelInstance
+    settings = getSettings()
+    return SentenceTransformer(settings.embeddingModelName)
 
 def embedTexts(texts: Iterable[str]) -> np.ndarray:
     model = loadModel()

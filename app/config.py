@@ -6,8 +6,6 @@ class Settings(BaseSettings):
     apiKey: str = "dev-local-key"
     dataDir: Path = Path("data")
     embeddingModelName: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-    translationModelEnToJa: str = "Helsinki-NLP/opus-mt-en-jap"
-    translationModelJaToEn: str = "Helsinki-NLP/opus-mt-ja-en"
 
 setattr(Settings, "model_config", SettingsConfigDict(env_file=".env", env_prefix="HKA_", env_file_encoding="utf-8"))
 

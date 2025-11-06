@@ -1,6 +1,6 @@
+import numpy as np
 from dataclasses import dataclass
 from typing import List
-import numpy as np
 from app.config import Settings, getSettings
 from app.models import DocumentMatch, SourceDocument
 from app.services.documentStorage import DocumentRecord, DocumentStore
@@ -27,7 +27,7 @@ class RAGService:
         dataDirectory = self.settings.dataDir
         self.documentStore = DocumentStore(dataDirectory / "documents.json")
         self.vectorStore = FaissVectorStore(dataDirectory / "index.faiss")
-        self.translationService = TranslationService(self.settings)
+        self.translationService = TranslationService()
 
     def ingestDocument(self, filename: str, content: str) -> DocumentRecord:
         languageCode = detectLanguage(content)
@@ -39,21 +39,17 @@ class RAGService:
     def retrieveMatches(self, query: str, topK: int) -> RetrievalResult:
         queryLanguage = detectLanguage(query)
         queryEmbedding = embedText(query)
-        results = self.vectorStore.search(queryEmbedding, topK)
-        matches: List[DocumentMatch] = []
-        for documentId, scoreValue in results:
-            record = self.documentStore.getDocument(documentId)
-            if record is None:
-                continue
-            matches.append(
-                DocumentMatch(
-                    documentId=record.id,
-                    language=record.language,
-                    score=convertCosineToUnit(scoreValue),
-                    content=record.content,
-                    filename=record.filename,
-                )
+        matches = [
+            DocumentMatch(
+                documentId=record.id,
+                language=record.language,
+                score=convertCosineToUnit(scoreValue),
+                content=record.content,
+                filename=record.filename,
             )
+            for documentId, scoreValue in self.vectorStore.search(queryEmbedding, topK)
+            if (record := self.documentStore.getDocument(documentId))
+        ]
         return RetrievalResult(queryLanguage=queryLanguage, matches=matches)
 
     def generateResponse(self, query: str, topK: int, outputLanguage: str | None = None) -> GenerationResult:
@@ -73,9 +69,8 @@ class RAGService:
                 sources=[],
             )
 
-        baseResponse = self.composeResponse(query, retrievalResult.matches)
         generatedText = self.applyTranslationIfNeeded(
-            baseResponse,
+            self.composeResponse(query, retrievalResult.matches),
             sourceLanguage="en",
             targetLanguage=targetLanguage,
         )
@@ -99,11 +94,10 @@ class RAGService:
         )
 
     def composeResponse(self, query: str, matches: List[DocumentMatch]) -> str:
-        bulletPoints = []
-        for indexValue, match in enumerate(matches, start=1):
-            snippet = buildPreview(match.content, limitValue=320).replace("\n", " ")
-            bulletPoints.append(f"{indexValue}. {snippet}")
-
+        bulletPoints = [
+            f"{indexValue}. {buildPreview(match.content, limitValue=320).replace('\n', ' ')}"
+            for indexValue, match in enumerate(matches, start=1)
+        ]
         bulletText = "\n".join(f"- {point}" for point in bulletPoints)
         responseText = (
             f"Query: {query}\n\n"

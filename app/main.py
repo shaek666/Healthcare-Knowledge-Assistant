@@ -23,19 +23,13 @@ app.add_middleware(
 
 apiKeyScheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-def verifyApiKey(
-    apiKey: str | None = Depends(apiKeyScheme), settings: Settings = Depends(getAppSettings)
-) -> str:
+def verifyApiKey(apiKey: str | None = Depends(apiKeyScheme), settings: Settings = Depends(getAppSettings)) -> str:
     if apiKey is None or apiKey != settings.apiKey:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key.")
     return apiKey
 
 @app.post("/ingest", response_model=IngestResponse, summary="Ingest a medical document.")
-async def ingestDocument(
-    file: UploadFile = File(...),
-    _: str = Depends(verifyApiKey),
-    service: RAGService = Depends(getRagService),
-) -> IngestResponse:
+async def ingestDocument(file: UploadFile = File(...), _: str = Depends(verifyApiKey), service: RAGService = Depends(getRagService),) -> IngestResponse:
     filename = file.filename or "uploaded.txt"
     if Path(filename).suffix.lower() != ".txt":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only .txt documents are supported.")
@@ -53,20 +47,12 @@ async def ingestDocument(
     )
 
 @app.post("/retrieve", response_model=RetrieveResponse, summary="Retrieve relevant documents.")
-async def retrieveDocuments(
-    payload: RetrieveRequest,
-    _: str = Depends(verifyApiKey),
-    service: RAGService = Depends(getRagService),
-) -> RetrieveResponse:
+async def retrieveDocuments(payload: RetrieveRequest, _: str = Depends(verifyApiKey), service: RAGService = Depends(getRagService),) -> RetrieveResponse:
     result = service.retrieveMatches(query=payload.query, topK=payload.topK)
     return RetrieveResponse(queryLanguage=result.queryLanguage, matches=result.matches)
 
 @app.post("/generate", response_model=GenerateResponse, summary="Generate a grounded response.")
-async def generateResponse(
-    payload: GenerateRequest,
-    _: str = Depends(verifyApiKey),
-    service: RAGService = Depends(getRagService),
-) -> GenerateResponse:
+async def generateResponse(payload: GenerateRequest, _: str = Depends(verifyApiKey), service: RAGService = Depends(getRagService),) -> GenerateResponse:
     generation = service.generateResponse(query=payload.query, topK=payload.topK, outputLanguage=payload.outputLanguage)
     return GenerateResponse(
         queryLanguage=generation.queryLanguage,

@@ -1,14 +1,12 @@
+import pytest, numpy as np
 from pathlib import Path
 from typing import Iterator
-import numpy as np
-import pytest
 from fastapi.testclient import TestClient
 from app import dependencies
 from app.config import Settings
 from app.dependencies import getAppSettings, getRagService
 from app.main import app
 from app.services import ragService
-
 
 @pytest.fixture()
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
@@ -80,4 +78,3 @@ def testIngestRetrieveAndGenerate(client: TestClient) -> None:
     assert generation["outputLanguage"] == "en"
     assert generation["sources"]
     assert "Type 2 diabetes" in generation["response"]
-
