@@ -7,15 +7,20 @@ This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer
 - Docker Desktop with the `docker` CLI
 
 ## Quick start with Docker (Windows PowerShell)
-1. Pick an API key and export it before running the container:
+1. Clone the repository and switch into the project folder:
+   ```powershell
+   git clone https://github.com/shaek666/Healthcare-Knowledge-Assistant.git
+   Set-Location Healthcare-Knowledge-Assistant
+   ```
+2. Pick an API key and export it before running the container:
    ```powershell
    $env:HKA_API_KEY = "your-secret-key"
    ```
-2. Build the image. Dependencies are handled inside the Docker build, so no virtualenv is necessary:
+3. Build the image. Dependencies are handled inside the Docker build, so no virtualenv is necessary:
    ```powershell
    docker build -t healthcare-knowledge-assistant .
    ```
-3. Launch the backend:
+4. Launch the backend:
    ```powershell
    docker run -e HKA_API_KEY=$env:HKA_API_KEY -p 8000:8000 healthcare-knowledge-assistant
    ```
@@ -58,7 +63,7 @@ docker run --rm ghcr.io/shaek666/healthcare-knowledge-assistant:latest python -m
 
 **Modularity.** I tried to keep the whole code base as lightweight and bloat free as possible. For this version, v0.1.0-alpha, Key behaviors lies inside `app/services/`. `translation.py` handles bilingual translations, `documentStorage.py` deals with metadata, and `vectorStorage.py` holds FAISS persistence. Swapping anything, such as replacing the translation module with a production model or plugging in an external vector store, only touches that module. FastAPI routers stay light-weight and simply delegate to the service layer, which keeps the codebase easy to maintain.
 
-**Future improvements.** Upcoming iterations could chunk large documents before embedding, so we can handle guideline PDFs neatly. Background workers (Celery or simple RQ) would make ingestion run asynchronously while the API stays responsive. Additional items such as auditable response logs, rate limiting, and a real translation bridge for Japanese-to-English could be implemented. These additions would make the backend a realistic foundation for clinical knowledge assistants.
+**Future improvements.** Upcoming iterations will add PDF and DOCX ingestion by dropping a text extraction layer ahead of embeddings. They could also chunk large documents before embedding so guideline docs stay manageable. Background workers (Celery or simple RQ) would make ingestion run asynchronously while the API stays responsive. Additional items such as auditable response logs, rate limiting, and a real translation bridge for Japanese-to-English could be implemented. These additions would make the backend a realistic foundation for clinical knowledge assistants.
 
 ## Project map
 ```
