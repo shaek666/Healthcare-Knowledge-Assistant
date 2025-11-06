@@ -6,7 +6,7 @@ This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer
 - Python 3.13.9
 - Docker Desktop with the `docker` CLI
 
-## Quick start with Docker
+## Quick start with Docker (Windows PowerShell)
 1. Pick an API key and export it before running the container:
    ```powershell
    $env:HKA_API_KEY = "your-secret-key"
@@ -21,7 +21,7 @@ This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer
    ```
    FAISS artifacts land in `/app/data`. Mount a volume if you want those vectors to survive container restarts:
    ```powershell
-   docker run -e HKA_API_KEY=$env:HKA_API_KEY -p 8000:8000 -v ${PWD}/data:/app/data healthcare-knowledge-assistant
+   docker run -e HKA_API_KEY=$env:HKA_API_KEY -p 8000:8000 -v "${PWD}/data:/app/data" healthcare-knowledge-assistant
    ```
 
 ### Pulling the published image
