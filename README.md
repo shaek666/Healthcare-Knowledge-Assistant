@@ -1,6 +1,6 @@
 ﻿# Healthcare Knowledge Assistant
 
-This repository contains the solution for the Acme AI Sr. LLM / Backend Engineer assignment. It ships a FastAPI backend that can ingest English and Japanese guideline documents, store embeddings in FAISS, and serve retrieval-augmented responses. Every endpoint expects an `X-API-Key` header so the service stays locked down.
+This project ships a FastAPI backend that can ingest English and Japanese guideline documents, store embeddings in FAISS, and serve retrieval-augmented responses. Every endpoint expects an `X-API-Key` header so the service stays locked down.
 
 ## What you need
 - Python 3.13.9
